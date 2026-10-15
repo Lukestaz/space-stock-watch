@@ -1,0 +1,45 @@
+name: Refresh ticker catalogue
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['scripts/catalog.py', '.github/workflows/catalog.yml']
+  schedule:
+    - cron: '43 10 * * *'
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: stock-monitor
+  cancel-in-progress: false
+jobs:
+  catalog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch public ticker metadata
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+        run: python scripts/catalog.py
+      - name: Save catalogue
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if [ -f site/catalog.json ]; then
+            git add site/catalog.json
+            if ! git diff --cached --quiet; then
+              git commit -m 'Refresh public ticker catalogue'
+              git push
+            fi
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
