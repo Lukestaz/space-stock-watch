@@ -1,4 +1,33 @@
 {
-  "stocks": {},
+  "stocks": {
+    "LUNR": {
+      "armed": {
+        "near": true,
+        "target": true
+      },
+      "history_day": "2026-10-15"
+    },
+    "FLY": {
+      "armed": {
+        "near": true,
+        "target": true
+      },
+      "history_day": "2026-10-15"
+    },
+    "RKLB": {
+      "armed": {
+        "near": true,
+        "target": true
+      },
+      "history_day": "2026-10-15"
+    },
+    "SPCX": {
+      "armed": {
+        "near": true,
+        "target": true
+      },
+      "history_day": "2026-10-15"
+    }
+  },
   "events": {}
 }
