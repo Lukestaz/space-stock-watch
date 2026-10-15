@@ -6,7 +6,7 @@
         "target": true
       },
       "history_day": "2026-10-15",
-      "last": "2026-10-15T20:18:00Z"
+      "last": "2026-10-15T23:01:00Z"
     },
     "FLY": {
       "armed": {
@@ -14,7 +14,7 @@
         "target": true
       },
       "history_day": "2026-10-15",
-      "last": "2026-10-15T20:18:00Z"
+      "last": "2026-10-15T22:57:00Z"
     },
     "RKLB": {
       "armed": {
@@ -22,7 +22,7 @@
         "target": true
       },
       "history_day": "2026-10-15",
-      "last": "2026-10-15T20:18:00Z"
+      "last": "2026-10-15T23:01:00Z"
     },
     "SPCX": {
       "armed": {
@@ -30,7 +30,7 @@
         "target": true
       },
       "history_day": "2026-10-15",
-      "last": "2026-10-15T20:18:00Z"
+      "last": "2026-10-15T23:01:00Z"
     }
   },
   "events": {}
