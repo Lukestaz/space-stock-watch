@@ -1,0 +1,49 @@
+name: Monitor and publish dashboard
+on:
+  push:
+    branches: [main]
+    paths: ['scripts/**', 'site/**', 'config/**', '.github/workflows/**']
+  workflow_dispatch:
+  schedule:
+    - cron: '7,22,37,52 13-21 * * 1-5'
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+concurrency:
+  group: stock-monitor
+  cancel-in-progress: false
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check prices and send review alerts
+        env:
+          ALPACA_KEY: ${{ secrets.ALPACA_KEY }}
+          ALPACA_SECRET: ${{ secrets.ALPACA_SECRET }}
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          ALERT_TO_EMAIL: ${{ secrets.ALERT_TO_EMAIL }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_API_KEY: ${{ secrets.WHATSAPP_API_KEY }}
+        run: python scripts/monitor.py
+      - name: Save state and public snapshot
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site/data.json
+          if [ -d state ]; then git add state; fi
+          if ! git diff --cached --quiet; then
+            git commit -m 'Update price snapshot and alert state'
+            git push
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - uses: actions/deploy-pages@v4
