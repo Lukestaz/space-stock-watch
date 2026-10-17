@@ -60,11 +60,13 @@ Workflows were separated in commit 183f7ab on 18 October 2026:
 - Publish dashboard (.github/workflows/publish-pages.yml): manual, pushes to site/** or its own workflow on main, and successful main-branch completions of Monitor stock alerts or Refresh ticker catalogue. Checks out current main and publishes only site/. It does not run the monitor or receive alert credentials.
 - Monitor stock alerts (.github/workflows/monitor.yml): manual on main and minutes 7/22/37/52 during UTC hours 13–21, Monday–Friday. Checks prices, can send real configured alerts, and commits site/data.json plus alert state. Code pushes no longer trigger it. Timing is best effort, not exchange-calendar-aware, and includes some extended hours/holidays.
 - Refresh ticker catalogue (.github/workflows/catalog.yml): daily/manual and catalogue-code/workflow pushes on main. Saves public symbol/name/exchange metadata, not credentials. Successful completion hands publishing to Publish dashboard.
-- Deploy price lookup Worker (.github/workflows/deploy-prices.yml): manual only; unit tests, secret-presence checks, deploy, install provider secrets and verify health/AAPL data.
+- Deploy price lookup Worker (.github/workflows/deploy-prices.yml): manual on main; validates secrets, runs unit tests, deploys with pinned Wrangler 4.150.0, installs provider secrets and verifies health/AAPL data, timestamp boundaries and the allowed-origin response header. Explicit Bash pipefail stops on CLI errors. Verification uses the confirmed production endpoint, not a log-scraped URL.
 
 Monitor and catalogue runs share the stock-monitor concurrency group to serialize their repository writes. Pages publishing uses a separate stock-pages group. The publisher accepts successful workflow-run hand-offs only from this repository's main branch and checks out trusted main rather than upstream artifacts. Automatic-token commits do not themselves start push workflows; the workflow_run hand-off publishes saved data even when those commits do not trigger a push run.
 
-A README-only commit does not trigger publishing or alert monitoring. Dashboard source changes trigger publishing, not alert monitoring. The dashboard fetch URL is configured in site/market-data.js. Worker changes require their own deployment; a Pages deployment does not deploy the Worker. The new publishing workflow and completion hand-off still require execution verification.
+README/config-only changes do not trigger Pages publishing or alert monitoring. Dashboard source changes trigger publishing, not alert monitoring. The dashboard fetch URL is configured in site/market-data.js. Worker changes require their own deployment; a Pages deployment does not deploy the Worker.
+
+Worker preview URLs are explicitly disabled in worker/wrangler.jsonc. This setting requires a subsequent manual Worker deployment to take effect; committing the configuration does not disable currently deployed previews. The production workers.dev route remains enabled.
 
 ## Code map
 
@@ -76,15 +78,22 @@ A README-only commit does not trigger publishing or alert monitoring. Dashboard 
 - scripts/monitor.py: scheduled data collection, alert state and notifications.
 - scripts/catalog.py: ticker metadata catalogue.
 - worker/: price-service code, configuration, tests and deployment notes.
+- worker/scripts/verify-deployment.mjs: live production health, data and allowed-origin header checks.
 
 ## Verification and remaining work
 
 On 17 October 2026, the user verified Worker health and AAPL history in a browser, reported success with the integrated dashboard, and confirmed the renamed Pages URL loads. On 18 October, the user reported that the revised chart layout looks good. These are user-reported browser checks, not a full automated regression pass or proof of notification delivery.
 
+On 18 October, the user supplied Actions results showing successful Publish dashboard #1 on push 183f7ab, Refresh ticker catalogue #5 on the same commit, and a subsequent successful Publish dashboard #2. This supports the catalogue-to-publisher hand-off, but the pasted run list did not explicitly show #2's event type.
+
+The user also supplied the successful manual Worker run log after commit 6307bec: Wrangler 4.150.0 uploaded the Worker and deployed triggers, both Alpaca secrets installed, and live health/CORS/AAPL checks passed with 501 daily bars. The prior account-subdomain error did not recur in that run. The verification snapshot was fetched at 2026-10-17T18:49:54.106Z; its AAPL observation was 2026-10-16T23:59:00Z. No manual alert test was part of these checks.
+
+Known low-priority issue: the user reports graph zoom/date selections reset on refresh. Preservation is not verified and this behaviour has not been fixed.
+
 Next, in order:
-1. Verify the dedicated Pages workflow and catalogue-to-publisher hand-off, without manually invoking the alert monitor. Verify monitor-to-publisher hand-off after an appropriate scheduled or explicitly approved monitor run.
-2. Repair the Worker deployment workflow: the pinned Wrangler uploaded code/secrets but failed an account-subdomain lookup, and pipeline failures can be concealed without explicit Bash pipefail. Review Wrangler, pipeline failure handling and verification against the confirmed endpoint.
-3. Check saved targets/order after reload; unsaved drafts during refresh; chart selections after refresh; share/import on another device; and error/fallback behaviour.
+1. Apply and verify preview_urls:false with a separately approved manual Worker deployment.
+2. Check saved targets/order after reload; unsaved drafts during data refresh; share/import on another device; and error/fallback behaviour. Keep chart-selection reset as a low-priority follow-up.
+3. Verify monitor-to-publisher hand-off after an appropriate scheduled or explicitly approved monitor run; inspect Publish dashboard #2's event details if exact catalogue hand-off attribution is needed.
 4. With explicit approval, test notification receipt separately for each configured channel.
 
 A future feature is explicit opt-in enrollment of personal dashboard targets into scheduled alerts; that connection does not exist yet.
@@ -95,4 +104,4 @@ The Worker is public and rate-limited. CORS is not authentication, and rate limi
 
 This public repository retains published price snapshots and monitor state/history. State must contain no contacts, credentials or private investment notes. Share links are not encrypted. There is no authenticated cross-device sync or personal scheduled-alert enrollment yet.
 
-Monitor scans resume from saved timestamps, capped at seven days. Exactly-once notification delivery is not guaranteed: sending can succeed before state is committed. There are no automated failure notifications. Verify a current broker quote independently before making any trading decision.
+Monitor scans resume from saved timestamps, capped at seven days. Exactly-once notification delivery is not guaranteed: sending can succeed before state is committed. There are no automated failure notifications. A failed Worker deployment or post-deploy check does not automatically roll back production. Verify a current broker quote independently before making any trading decision.

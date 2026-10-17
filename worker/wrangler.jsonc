@@ -3,6 +3,7 @@
   "main": "src/index.mjs",
   "compatibility_date": "2026-10-17",
   "workers_dev": true,
+  "preview_urls": false,
   "vars": {"ALLOWED_ORIGIN": "https://lukestaz.github.io"},
   "ratelimits": [
     {"name": "CLIENT_LIMIT", "namespace_id": "71017001", "simple": {"limit": 30, "period": 60}},
