@@ -1,24 +1,22 @@
-name: Monitor and publish dashboard
+name: Monitor stock alerts
 on:
-  push:
-    branches: [main]
-    paths: ['scripts/**', 'site/**', 'config/**', '.github/workflows/**']
   workflow_dispatch:
   schedule:
     - cron: '7,22,37,52 13-21 * * 1-5'
 permissions:
   contents: write
-  pages: write
-  id-token: write
 concurrency:
   group: stock-monitor
   cancel-in-progress: false
 jobs:
   monitor:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -40,10 +38,5 @@ jobs:
           if [ -d state ]; then git add state; fi
           if ! git diff --cached --quiet; then
             git commit -m 'Update price snapshot and alert state'
-            git push
+            git push origin HEAD:main
           fi
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
-      - uses: actions/deploy-pages@v4

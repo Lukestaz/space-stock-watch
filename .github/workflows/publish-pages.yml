@@ -1,0 +1,43 @@
+name: Publish dashboard
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['site/**', '.github/workflows/publish-pages.yml']
+  workflow_run:
+    workflows: ['Monitor stock alerts', 'Refresh ticker catalogue']
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: stock-pages
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out current main including committed data
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Deploy dashboard only
+        id: deployment
+        uses: actions/deploy-pages@v4
