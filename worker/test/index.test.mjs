@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker,{normalizeSymbol,cleanBars} from '../src/index.mjs';
+test('symbol validation',()=>{assert.equal(normalizeSymbol(' aapl '),'AAPL');assert.equal(normalizeSymbol('BRK.B'),'BRK.B');for(const s of ['', '../secret','AAPL?x=1','<script>','A'.repeat(16)])assert.throws(()=>normalizeSymbol(s));});
+test('reject invalid and future bars',()=>{assert.deepEqual(cleanBars([{t:'2026-10-16T04:00:00Z',c:200,l:199},{t:'2026-10-18T04:00:00Z',c:201,l:200},{t:'bad',c:2,l:1},{t:'2026-10-15T04:00:00Z',c:-1,l:1}],Date.parse('2026-10-17T00:00:00Z')),[{t:'2026-10-16T04:00:00Z',c:200,l:199}]);});
+const base={ALLOWED_ORIGIN:'https://lukestaz.github.io'};
+test('reject foreign browser origin',async()=>{const r=await worker.fetch(new Request('https://test.example/health',{headers:{Origin:'https://other.example'}}),base,{});assert.equal(r.status,403);});
+test('health fails until configured',async()=>{const r=await worker.fetch(new Request('https://test.example/health'),base,{});assert.equal(r.status,503);assert.equal((await r.json()).ok,false);});
+test('reject unsupported methods',async()=>{const r=await worker.fetch(new Request('https://test.example/v1/stock',{method:'POST'}),base,{});assert.equal(r.status,405);});
+test('rate limit stops provider access',async()=>{const r=await worker.fetch(new Request('https://test.example/v1/stock?symbol=AAPL'),{...base,ALPACA_KEY:'test',ALPACA_SECRET:'test',CLIENT_LIMIT:{limit:async()=>({success:false})},UPSTREAM_LIMIT:{}},{});assert.equal(r.status,429);});
