@@ -2,7 +2,13 @@
 
 A mobile-friendly stock watchlist with delayed prices, interactive daily-history charts and personal entry targets. GitHub Pages hosts the dashboard; a Cloudflare Worker fetches on-demand Alpaca SIP data. A separate GitHub Actions monitor sends configured review alerts. No automatic trading.
 
-Dashboard: https://lukestaz.github.io/space-stock-watch/
+Dashboard: https://lukestaz.github.io/stock-watch/
+
+## Repository rename
+
+This repository was renamed from space-stock-watch to stock-watch. Update dashboard bookmarks and home-screen shortcuts to the URL above. For an old shared watchlist URL, replace /space-stock-watch/ with /stock-watch/ and retain the complete #watch= fragment. GitHub repository redirects do not imply a redirect for the old Pages project URL.
+
+The localStorage key space-stock-watch:v1:watchlist is intentionally retained for saved-watchlist compatibility. The HTTPS origin remains lukestaz.github.io; verify the saved list in the same browser/profile. The Cloudflare Worker URL and allowed origin do not change. Pages deployment at the new path still requires verification; this documentation-only commit does not trigger a publish.
 
 ## Use the dashboard
 
