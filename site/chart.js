@@ -21,7 +21,7 @@ function chart(parent,stock){
  const left=slider('Range start'),right=slider('Range end');
  const back=add('button','← Earlier',controls),forward=add('button','Later →',controls);
  const summary=add('p','',parent,'muted chart-summary'),detail=add('p','',parent,'muted chart-history-details');
- const W=900,L=18,R=720,T=40,B=415;
+ const W=900,L=18,T=40,B=415;let R=820;
  function node(tag,attrs,text){const n=document.createElementNS(svg.namespaceURI,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;svg.append(n);return n;}
  let overlay,vertical,horizontal,dot,ys,xs;
  function inspect(index){const b=bars[index],x=xs(index),y=ys(b.c);vertical.setAttribute('x1',x);vertical.setAttribute('x2',x);horizontal.setAttribute('y1',y);horizontal.setAttribute('y2',y);dot.setAttribute('cx',x);dot.setAttribute('cy',y);for(const n of [vertical,horizontal,dot])n.setAttribute('visibility','visible');readout.textContent=dateLabel(b.t)+' · Close '+money(b.c)+' · Low '+money(b.l);}
@@ -31,10 +31,15 @@ function chart(parent,stock){
   from.value=bars[start].t.slice(0,10);to.value=bars[end].t.slice(0,10);for(const i of [from,to]){i.min=bars[0].t.slice(0,10);i.max=bars.at(-1).t.slice(0,10);}left.value=start;right.value=end;
   for(const b of Object.values(buttons))b.setAttribute('aria-pressed','false');targetButton.setAttribute('aria-pressed',String(showTarget));back.disabled=start===0;forward.disabled=end===bars.length-1;
   svg.replaceChildren();const view=bars.slice(start,end+1);let low=Math.min(...view.map(b=>b.c)),high=Math.max(...view.map(b=>b.c));if(showTarget){low=Math.min(low,stock.target);high=Math.max(high,stock.target);}const pad=Math.max((high-low)*.1,high*.01,.01);low-=pad;high+=pad;
+  const raw=(high-low)/5,power=10**Math.floor(Math.log10(raw));
+  const step=[1,2,2.5,5,10].map(n=>n*power).reduce((a,b)=>Math.abs(Math.log(b/raw))<Math.abs(Math.log(a/raw))?b:a);
+  const decimals=Math.min(8,Math.max(0,-Math.floor(Math.log10(step)))+(Math.abs(step/10**Math.floor(Math.log10(step))-2.5)<1e-8?1:0));
+  const axis=[];for(let i=Math.ceil(low/step),count=0;i*step<=high+step*1e-8&&count<12;i++,count++){const value=i*step;axis.push({value,label:value.toLocaleString('en-US',{maximumFractionDigits:decimals})});}
+  const longest=Math.max(3,...axis.map(t=>t.label.length));R=W-Math.min(220,Math.max(80,longest*15+28));
   xs=i=>L+(i-start)/Math.max(1,end-start)*(R-L);ys=v=>B-(v-low)/(high-low)*(B-T);
-  for(let k=0;k<=4;k++){const value=low+(high-low)*k/4,y=ys(value);node('line',{x1:L,x2:R,y1:y,y2:y,stroke:'#30425a'});node('text',{x:R+12,y:y+8,fill:'#c1cfe0','font-size':26,textLength:150,lengthAdjust:'spacingAndGlyphs'},money(value));}
+  for(const tick of axis){const y=ys(tick.value);node('line',{x1:L,x2:R,y1:y,y2:y,stroke:'#30425a','stroke-opacity':.55});node('text',{x:R+12,y:y+8,fill:'#aebed2','font-size':25},tick.label);}
   const ticks=new Set([start,Math.round(start+(end-start)/3),Math.round(start+2*(end-start)/3),end]);for(const i of ticks){const x=xs(i);node('text',{x,y:B+38,fill:'#c1cfe0','font-size':24,'text-anchor':i===start?'start':i===end?'end':'middle'},dateLabel(bars[i].t));}
-  node('text',{x:R+12,y:25,fill:'#c1cfe0','font-size':24},'USD');
+  node('text',{x:R+12,y:24,fill:'#aebed2','font-size':21},'USD');
   if(showTarget){const y=ys(stock.target);node('line',{x1:L,x2:R,y1:y,y2:y,stroke:'#ffcf7b','stroke-dasharray':'7 5'});node('text',{x:L+5,y:y-9,fill:'#ffcf7b','font-size':24},'Target '+money(stock.target));}
   node('polyline',{points:view.map((b,j)=>xs(j+start)+','+ys(b.c)).join(' '),fill:'none',stroke:'#72e0c0','stroke-width':2.5});
   vertical=node('line',{x1:L,x2:L,y1:T,y2:B,stroke:'#cad9ed','stroke-dasharray':'3 4',visibility:'hidden'});horizontal=node('line',{x1:L,x2:R,y1:T,y2:T,stroke:'#cad9ed','stroke-dasharray':'3 4',visibility:'hidden'});dot=node('circle',{r:5,fill:'#fff',visibility:'hidden'});
