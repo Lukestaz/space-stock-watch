@@ -8,7 +8,7 @@ Dashboard: https://lukestaz.github.io/stock-watch/
 
 This repository was renamed from space-stock-watch to stock-watch. Update dashboard bookmarks and home-screen shortcuts to the URL above. For an old shared watchlist URL, replace /space-stock-watch/ with /stock-watch/ and retain the complete #watch= fragment. GitHub repository redirects do not imply a redirect for the old Pages project URL.
 
-The localStorage key space-stock-watch:v1:watchlist is intentionally retained for saved-watchlist compatibility. The HTTPS origin remains lukestaz.github.io; verify the saved list in the same browser/profile. The Cloudflare Worker URL and allowed origin do not change. Pages deployment at the new path still requires verification; this documentation-only commit does not trigger a publish.
+The localStorage key space-stock-watch:v1:watchlist is intentionally retained for saved-watchlist compatibility. The HTTPS origin remains lukestaz.github.io; verify the saved list in the same browser/profile. The Cloudflare Worker URL and allowed origin do not change. The user confirmed the dashboard loads at the new URL on 17 October 2026.
 
 ## Use the dashboard
 
@@ -25,9 +25,9 @@ Refresh data reloads the published monitor snapshot and checks watchlist prices.
 
 The open page checks data every 60 seconds. Successful price snapshots can be reused for five minutes in the client and Worker caches; pressing Refresh data requests the Worker again but does not bypass its cache. The status line distinguishes checks, changed observations, cached snapshots and errors. No newer observation is not the same as a failed request.
 
-Worker requests end at least 16 minutes before fetch time. A response's fetchedAt is when it was obtained, dataCutoff is the request boundary, and time is the actual minute-close observation timestamp. Prices are delayed observations, not executable quotes. Market closures or an unchanged cached response can leave prices unchanged after a successful refresh.
+Worker requests end at least 16 minutes before fetch time. A response's fetchedAt is when it was obtained, dataCutoff is the request boundary, and time is the actual minute-close observation timestamp. Prices are delayed observations, not executable quotes. Market closures or an unchanged cached response can leave prices unchanged after a successful refresh. The overall Checked time is the app's data check; each card's Price as of time identifies its market observation, not its refresh time.
 
-Daily history is split-adjusted; minute prices are raw. The client conservatively excludes the current New York calendar day's daily bar from completed-close history, even after that day's close. This avoids presenting partial bars as completed sessions, but can delay the latest chart point until the next New York date.
+Daily history is split-adjusted; minute prices are raw. Chart dates identify US trading dates. The client conservatively excludes the current New York calendar day's daily bar from completed-close history, even after that day's close. This avoids presenting partial bars as completed sessions, but can delay the latest chart point until the next New York date.
 
 Lookups use three concurrent requests. Rate limits, unavailable symbols or provider/network failures can produce per-ticker errors; older validated data is retained in the current session or from the published feed where available. Price snapshots are not persisted across browser restarts.
 
@@ -56,12 +56,15 @@ Actions secrets:
 
 Use a dedicated, least-privilege Cloudflare API token for the intended account, not a Global API Key. Do not commit secrets or paste them into chat. See worker/README.md for endpoint verification and deployment caveats.
 
-Workflows:
-- Monitor and publish dashboard: manual, selected source/config/workflow pushes, and minutes 7/22/37/52 during UTC hours 13–21, Monday–Friday. Publishes only site/. Timing is best effort, not exchange-calendar-aware, and includes some extended hours/holidays. It can send real configured alerts.
-- Refresh ticker catalogue: daily/manual and catalogue-code pushes; publishes public symbol/name/exchange metadata, not credentials.
-- Deploy price lookup Worker: manual only; unit tests, secret-presence checks, deploy, install provider secrets and verify health/AAPL data.
+Workflows were separated in commit 183f7ab on 18 October 2026:
+- Publish dashboard (.github/workflows/publish-pages.yml): manual, pushes to site/** or its own workflow on main, and successful main-branch completions of Monitor stock alerts or Refresh ticker catalogue. Checks out current main and publishes only site/. It does not run the monitor or receive alert credentials.
+- Monitor stock alerts (.github/workflows/monitor.yml): manual on main and minutes 7/22/37/52 during UTC hours 13–21, Monday–Friday. Checks prices, can send real configured alerts, and commits site/data.json plus alert state. Code pushes no longer trigger it. Timing is best effort, not exchange-calendar-aware, and includes some extended hours/holidays.
+- Refresh ticker catalogue (.github/workflows/catalog.yml): daily/manual and catalogue-code/workflow pushes on main. Saves public symbol/name/exchange metadata, not credentials. Successful completion hands publishing to Publish dashboard.
+- Deploy price lookup Worker (.github/workflows/deploy-prices.yml): manual only; unit tests, secret-presence checks, deploy, install provider secrets and verify health/AAPL data.
 
-A documentation-only commit does not match the monitor's publish paths. The dashboard fetch URL is configured in site/market-data.js. Worker changes require their own deployment; a Pages deployment does not deploy the Worker.
+Monitor and catalogue runs share the stock-monitor concurrency group to serialize their repository writes. Pages publishing uses a separate stock-pages group. The publisher accepts successful workflow-run hand-offs only from this repository's main branch and checks out trusted main rather than upstream artifacts. Automatic-token commits do not themselves start push workflows; the workflow_run hand-off publishes saved data even when those commits do not trigger a push run.
+
+A README-only commit does not trigger publishing or alert monitoring. Dashboard source changes trigger publishing, not alert monitoring. The dashboard fetch URL is configured in site/market-data.js. Worker changes require their own deployment; a Pages deployment does not deploy the Worker. The new publishing workflow and completion hand-off still require execution verification.
 
 ## Code map
 
@@ -69,18 +72,22 @@ A documentation-only commit does not match the monitor's publish paths. The dash
 - site/watchlist.js: local watchlist, imports/sharing and published-monitor separation.
 - site/market-data.js: Worker lookup, validation, cache/fallback and refresh status.
 - site/chart.js and site/card-headers.js: chart rendering and card metadata.
-- site/navigation.js, site/compact-editor.js, site/dashboard-polish.js: interface enhancements.
+- site/navigation.js, site/compact-editor.js, site/dashboard-polish.js and site/visual-polish.js: interface enhancements.
 - scripts/monitor.py: scheduled data collection, alert state and notifications.
 - scripts/catalog.py: ticker metadata catalogue.
 - worker/: price-service code, configuration, tests and deployment notes.
 
 ## Verification and remaining work
 
-On 17 October 2026, the user verified Worker health and AAPL history in a browser, then reported success with the integrated dashboard. This is not a claim that a full automated browser regression suite passed or that notification delivery was verified.
+On 17 October 2026, the user verified Worker health and AAPL history in a browser, reported success with the integrated dashboard, and confirmed the renamed Pages URL loads. On 18 October, the user reported that the revised chart layout looks good. These are user-reported browser checks, not a full automated regression pass or proof of notification delivery.
 
-Next checks: saved targets after reload; unsaved drafts during refresh; chart selections after refresh; share/import on another device; error/fallback behaviour; explicitly approved test-notification receipt.
+Next, in order:
+1. Verify the dedicated Pages workflow and catalogue-to-publisher hand-off, without manually invoking the alert monitor. Verify monitor-to-publisher hand-off after an appropriate scheduled or explicitly approved monitor run.
+2. Repair the Worker deployment workflow: the pinned Wrangler uploaded code/secrets but failed an account-subdomain lookup, and pipeline failures can be concealed without explicit Bash pipefail. Review Wrangler, pipeline failure handling and verification against the confirmed endpoint.
+3. Check saved targets/order after reload; unsaved drafts during refresh; chart selections after refresh; share/import on another device; and error/fallback behaviour.
+4. With explicit approval, test notification receipt separately for each configured channel.
 
-Known deployment-workflow issue: the pinned Wrangler uploaded code/secrets but failed an account-subdomain lookup. The deploy pipeline can conceal failures without explicit Bash pipefail. Updating Wrangler, fixing pipeline failure handling and using the confirmed endpoint in verification remain follow-up work.
+A future feature is explicit opt-in enrollment of personal dashboard targets into scheduled alerts; that connection does not exist yet.
 
 ## Security and limitations
 
